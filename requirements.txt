@@ -8,17 +8,17 @@ attrs=19.3.0=py_0
 backcall=0.1.0=py37_0
 beautifulsoup4=4.8.2=pypi_0
 blas=1.0=mkl
-bleach=3.1.0=py37_0
+bleach=3.1.4=pyh9f0ad1d_0
 boost-cpp=1.67.0=h1de35cc_4
 brotli=1.0.7=h0a44026_0
 bzip2=1.0.8=h1de35cc_0
 c-ares=1.15.0=h1de35cc_1001
-ca-certificates=2020.1.1=0
+ca-certificates=2019.11.28=hecc5488_0
 cairo=1.14.12=hc4e6be7_4
 cartopy=0.17.0=py37h4076dca_1009
 census=0.8.13=pypi_0
 censusgeocode=0.4.3.post1=pypi_0
-certifi=2019.11.28=py37_1
+certifi=2019.11.28=py37hc8dfbb8_1
 cffi=1.14.0=py37hb5b8e2f_0
 cfitsio=3.470=hb33e7b4_2
 chardet=3.0.4=py37_1003
@@ -129,7 +129,7 @@ numpy=1.18.1=py37h7241aed_0
 numpy-base=1.18.1=py37h6575580_1
 olefile=0.46=py37_0
 openjpeg=2.3.0=hb95cd4c_1
-openssl=1.1.1f=h1de35cc_0
+openssl=1.1.1f=h0b31af3_0
 owslib=0.19.2=py_1
 pandas=1.0.1=py37h6c726b0_0
 pandoc=2.2.3.2=0
@@ -165,6 +165,7 @@ pyshp=2.1.0=py_0
 pysocks=1.7.1=py37_0
 python=3.7.7=hfe9666f_0_cpython
 python-dateutil=2.8.1=py_0
+python_abi=3.7=1_cp37m
 pytz=2019.3=py_0
 pyyaml=5.3.1=py37h1de35cc_0
 pyzmq=18.1.1=py37h0a44026_0
