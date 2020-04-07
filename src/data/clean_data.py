@@ -1,5 +1,3 @@
-import json
-
 import pandas as pd
 import geopandas as gpd
 from bs4 import BeautifulSoup
@@ -228,7 +226,8 @@ if __name__ == '__main__':
 
     """
 
-    # counties_raw = read from raw_root + "state/counties_resonse.json"
+    with open(raw_root + "state/counties_response.txt", 'r') as file:
+        counties_raw = file.read()
     counties_df = parse_wiki_counties_to_df(counties_raw)
     counties = clean_wiki_counties_df(counties_df)
     counties.countynum = [str(z+1).zfill(2) for z in counties.index.values]
@@ -276,6 +275,26 @@ if __name__ == '__main__':
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     register(conn)
     cur = conn.cursor()
+
+    """
+    Write Counties
+    """
+    cur.execute("""DROP TABLE IF EXISTS colorado_counties""")
+    cur.execute("""
+        CREATE TABLE colorado_counties (
+            "id" INT PRIMARY KEY,
+            "county" TEXT NOT NULL UNIQUE,
+            "fips" TEXT NOT NULL UNIQUE,
+            "established" DATE NOT NULL,
+            "population" INT NOT NULL,
+            "area" FLOAT NOT NULL,
+            "countynum" TEXT NOT NULL,
+        )""")
+    for _, row in counties.iterrows():
+        vals = [row.name] + list(row.iloc[[0, 1, 3, 4, 5, 6]])
+        cur.execute("""INSERT INTO colorado_counties
+                (id, county, fips, established, population, area, countynum)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)""", vals)
 
     """
     Write Precinct Shapefiles to Database
