@@ -8,7 +8,7 @@ def parse_wiki_counties_to_df(response):
     """
 
     """
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soup = BeautifulSoup(response, 'html.parser')
     table = soup.find('table', {'class': "wikitable sortable"})
     body = table.select('tr')
     header = body[0]
@@ -95,29 +95,29 @@ def buffer_if_invalid(geom):
     return geom
 
 
-def parse_precinct_NAMELSAD(precincts):
+def parse_precinct_NAMELSAD(name_var):
     """
 
     """
-    parsed = [parse_NAMELSAD(value) for value in precincts.NAMELSAD.values]
+    parsed = [parse_NAMELSAD(value) for value in name_var]
     parsed = list(map(list, zip(*parsed)))
     return parsed
 
 
 def clean_precincts_2016(df):
-    parsed_2016 = parse_precinct_NAMELSAD(df)
+    parsed_2016 = parse_precinct_NAMELSAD(df.NAMELSAD.values)
     clean_2016 = (gpd.GeoDataFrame()
                      .assign(
         countyfips=df["COUNTYFP"].values,
         countyname=[lookup_countyfips(f, counties)
                     for f in df["COUNTYFP"].values],
-        countynum=[None] * len(parsed_2016[1]),
+        countynum=['none'] * len(parsed_2016[1]),
         vtdst3=parsed_2016[1],
         vtds5=parsed_2016[1],
         vtdst=parsed_2016[2],
-        congressional_district_115fips=[None] * len(parsed_2016[1]),
-        state_legisture_upper=[None] * len(parsed_2016[1]),
-        state_legisture_lower=[None] * len(parsed_2016[1]),
+        congressional_district_115fips=['none'] * len(parsed_2016[1]),
+        state_legisture_upper=['none'] * len(parsed_2016[1]),
+        state_legisture_lower=['none'] * len(parsed_2016[1]),
         geometry=df['geometry'].map(buffer_if_invalid)
                         )
                   )
@@ -131,19 +131,19 @@ def clean_precincts_2016(df):
 
 
 def clean_precincts_2018(df):
-    parsed_2018 = parse_precinct_NAMELSAD(df)
+    parsed_2018 = parse_precinct_NAMELSAD(df.NAME.values)
     clean_2018 = (gpd.GeoDataFrame().assign(
         countyfips=df["COUNTYFP"].values,
         countyname=[lookup_countyfips(fips, counties)
                     for fips in df["COUNTYFP"].values],
-        countynum=[None] * len(parsed_2018[1]),
-        vtdst3=((df["VTDST"].values.astype(int) % 1000)
-                .map(lambda x: str(x).zfill(3))),
-        vtdst5=[None] * len(parsed_2018[1]),
+        countynum=['none'] * len(parsed_2018[1]),
+        vtdst3=pd.Series(df["VTDST"].values.astype(int) % 1000)
+            .map(lambda x: str(x).zfill(3)),
+        vtdst5=['none'] * len(parsed_2018[1]),
         vtdst=df["PRECID"],
-        congressional_district_115fips=[None] * len(parsed_2018[1]),
-        state_legisture_upper=[None] * len(parsed_2018[1]),
-        state_legisture_lower=[None] * len(parsed_2018[1]),
+        congressional_district_115fips=['none'] * len(parsed_2018[1]),
+        state_legisture_upper=['none'] * len(parsed_2018[1]),
+        state_legisture_lower=['none'] * len(parsed_2018[1]),
         geometry=df['geometry'].map(buffer_if_invalid)
                         )
                  )
@@ -198,11 +198,11 @@ def get_county_name_to_number_mapping():
 
 
 def generate_long_precinct_number(df):
-    congress = df.CD115FP.values
-    state_senate = df.SLDUST.values
-    state_rep = df.SLDLST.values
-    county = df.COUNTYNUM.values
-    precinct = df.VTDST3.values
+    congress = df.congressional_district_115fips.values
+    state_senate = df.state_legisture_upper.values
+    state_rep = df.state_legisture_lower.values
+    county = df.countynum.values
+    precinct = df.vtdst3.values
     long = []
     for (a, b, c, d, e) in zip(congress, state_senate,
                                state_rep, county, precinct):
@@ -211,7 +211,7 @@ def generate_long_precinct_number(df):
 
 
 def update_county_vtdst(df):
-    df.countynum = df.countyname.map(lambda x: county_mapping[x])
+    df['countynum'] = df.countyname.map(lambda x: county_mapping[x])
     df['vtdst'] = generate_long_precinct_number(df)
     df['vtdst5'] = df['vtdst'].map(lambda x: x[-5:])
     return df
@@ -230,7 +230,7 @@ if __name__ == '__main__':
         counties_raw = file.read()
     counties_df = parse_wiki_counties_to_df(counties_raw)
     counties = clean_wiki_counties_df(counties_df)
-    counties.countynum = [str(z+1).zfill(2) for z in counties.index.values]
+    counties['countynum'] = [str(z+1).zfill(2) for z in counties.index.values]
     county_mapping = {}
 
     precincts_2016 = gpd.read_file(raw_root + "precincts/co_2016/")
@@ -255,10 +255,10 @@ if __name__ == '__main__':
                            'intptlat', 'intptlon']))
     co_fed_house = federal_house[federal_house.statefips == '08']
 
-    clean_2016 = add_districts(clean_2016, state_senate,
-                               state_house, co_fed_house)
-    clean_2018 = add_districts(clean_2018, state_senate,
-                               state_house, co_fed_house)
+    # clean_2016 = add_districts(clean_2016, state_senate,
+    #                            state_house, co_fed_house)
+    # clean_2018 = add_districts(clean_2018, state_senate,
+    #                            state_house, co_fed_house)
 
     county_mapping = get_county_name_to_number_mapping()
     clean_2016 = update_county_vtdst(clean_2016)
@@ -288,7 +288,7 @@ if __name__ == '__main__':
             "established" DATE NOT NULL,
             "population" INT NOT NULL,
             "area" FLOAT NOT NULL,
-            "countynum" TEXT NOT NULL,
+            "countynum" TEXT NOT NULL
         )""")
     for _, row in counties.iterrows():
         vals = [row.name] + list(row.iloc[[0, 1, 3, 4, 5, 6]])
@@ -303,7 +303,7 @@ if __name__ == '__main__':
     cur.execute("""DROP TABLE IF EXISTS precinct_shapefiles_2016""")
     cur.execute("""
         CREATE TABLE precinct_shapefiles_2016 (
-            "id" INT PRIMARY KEY
+            "index" INT PRIMARY KEY,
             "countyfips" TEXT NOT NULL,
             "countyname" TEXT NOT NULL,
             "countynum" TEXT NOT NULL,
@@ -313,23 +313,30 @@ if __name__ == '__main__':
             "congressional_district_115fips" TEXT NOT NULL,
             "state_legisture_upper" TEXT NOT NULL,
             "state_legisture_lower" TEXT NOT NULL,
-            "geom" POLYGON NOT NULL)
+            "geom" geometry)
         """)
+    cur.execute("""DROP TABLE IF EXISTS precinct_shapefiles_2018""")
     cur.execute("""
-        CREATE TABLE precinct_shapefiles_2018 LIKE precinct_shapefiles_2016)
+        CREATE TABLE precinct_shapefiles_2018 (
+            like precinct_shapefiles_2016 including all)
         """)
 
     def write_precinct_shapefile_table(df, table_name):
         srid_str = f"SRID={int(df.crs['init'][-4:])};"
         for _, row in df.iterrows():
-            vals = [table_name, row.name] + list(row.values)[:-1]
-            geom = srid_str + list(row.values)[-1].wkt
+            vars = ["countyfips", "countyname", "countynum", "vtdst3",
+                    "vtdst5", "vtdst", "congressional_district_115fips",
+                    "state_legisture_upper", "state_legisture_lower",
+                    "geometry"]
+            vals = [row.name] + list(row[vars].values)[:-1]
+            geom = srid_str + list(row[vars].values)[-1].wkt
             vals.append(geom)
-            sql = """INSERT INTO %s
-                     (id, countyfips, countyname, countynum, vtdst3, vtdst5,
+            sql = """INSERT INTO """ + table_name + """
+                     (index, countyfips, countyname, countynum, vtdst3, vtdst5,
                       vtdst, congressional_district_115fips,
                       state_legisture_upper, state_legisture_lower, geom)
-                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                       %s, %s::geometry)"""
             cur.execute(sql, vals)
 
     write_precinct_shapefile_table(clean_2016, 'precinct_shapefiles_2016')
