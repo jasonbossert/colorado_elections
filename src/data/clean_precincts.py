@@ -226,7 +226,12 @@ def assign_source_to_target(source, target, target_var, thresh=0.99):
     Assign a variable from target to source
     """
 
-    # CHECK SOURCE AND TARGET CRS ARE THE SAME !!!!
+    if not source.crs['init'] == target.crs['init']:
+        raise TypeError(
+            f"The source and target geometries must have the same CRS. "
+            f"source CRS: {source.crs['init']}, "
+            f"target CRS: {target.crs['init']}"
+            )
 
     idx = df_to_rtree_index(target)
 
