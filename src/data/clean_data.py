@@ -18,10 +18,12 @@ if __name__ == '__main__':
     counties['countynum'] = [str(z+1).zfill(2) for z in counties.index.values]
     county_mapping = {}
 
-    precincts_2016 = gpd.read_file(raw_root + "precincts/co_2016/")
+    precincts_2016 = (gpd.read_file(raw_root + "precincts/co_2016/")
+                         .to_crs(epsg=4269))
     clean_2016 = pre.clean_precincts_2016(precincts_2016, counties)
 
-    precincts_2018 = gpd.read_file(raw_root + "precincts/CO_precincts/")
+    precincts_2018 = (gpd.read_file(raw_root + "precincts/CO_precincts/")
+                         .to_crs(epsg=4269))
     clean_2018 = pre.clean_precincts_2018(precincts_2018, counties)
 
     state_senate = pre.read_and_fmt_state_vars(raw_root
@@ -38,12 +40,13 @@ if __name__ == '__main__':
             .drop(columns=['geoid', 'namelsad', 'lsad', 'cdsessn',
                            'mtfcc', 'funcstat', 'aland', 'awater',
                            'intptlat', 'intptlon']))
-    co_fed_house = federal_house[federal_house.statefips == '08']
+    co_fed_house = (federal_house[federal_house.statefips == '08']
+                    .reset_index(drop=True))
 
-    # clean_2016 = add_districts(clean_2016, state_senate,
-    #                            state_house, co_fed_house)
-    # clean_2018 = add_districts(clean_2018, state_senate,
-    #                            state_house, co_fed_house)
+    clean_2016 = pre.add_districts(clean_2016, state_senate,
+                                   state_house, co_fed_house)
+    clean_2018 = pre.add_districts(clean_2018, state_senate,
+                                   state_house, co_fed_house)
 
     county_mapping = pre.get_county_name_to_number_mapping(raw_root)
     clean_2016 = pre.update_county_vtdst(clean_2016, county_mapping)
@@ -126,10 +129,6 @@ if __name__ == '__main__':
 
     write_precinct_shapefile_table(clean_2016, 'precinct_shapefiles_2016')
     write_precinct_shapefile_table(clean_2018, 'precinct_shapefiles_2018')
-
-
-
-
 
     cur.close()
     conn.close()

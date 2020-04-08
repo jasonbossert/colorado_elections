@@ -1,7 +1,8 @@
 import pandas as pd
 import geopandas as gpd
 from bs4 import BeautifulSoup
-import maup
+from rtree import index
+import numpy as np
 
 
 def parse_wiki_counties_to_df(response):
@@ -168,21 +169,17 @@ def read_and_fmt_state_vars(name):
     return vals
 
 
-def get_assigned_values(source, target, var):
-    return target.loc[maup.assign(source, target)][var].values
-
-
 def add_districts(clean, state_senate,
                   state_house, co_fed_house):
-    clean['congressional_district_115fips'] = get_assigned_values(
+    clean['congressional_district_115fips'] = assign_source_to_target(
         clean, co_fed_house, 'congressional_district_115fips')
     clean['congressional_district_115fips'] = (
         clean['congressional_district_115fips']
         .map(lambda x: x.strip('0')))
 
-    clean['state_legisture_upper'] = get_assigned_values(
+    clean['state_legisture_upper'] = assign_source_to_target(
         clean, state_senate, 'district')
-    clean['state_legisture_lower'] = get_assigned_values(
+    clean['state_legisture_lower'] = assign_source_to_target(
         clean, state_house, 'district')
     return clean
 
@@ -215,3 +212,43 @@ def update_county_vtdst(df, county_mapping):
     df['vtdst'] = generate_long_precinct_number(df)
     df['vtdst5'] = df['vtdst'].map(lambda x: x[-5:])
     return df
+
+
+def df_to_rtree_index(df):
+    idx = index.Index()
+    for _, row in df.bounds.iterrows():
+        idx.insert(row.name, (row.minx, row.miny, row.maxx, row.maxy))
+    return idx
+
+
+def assign_source_to_target(source, target, target_var, thresh=0.99):
+    """
+    Assign a variable from target to source
+    """
+
+    # CHECK SOURCE AND TARGET CRS ARE THE SAME !!!!
+
+    idx = df_to_rtree_index(target)
+
+    assignment = []
+    for i, bound in source.bounds.iterrows():
+        source_geo = source.iloc[i].geometry
+        bounding_box = (bound.minx, bound.miny, bound.maxx, bound.maxy)
+        possible = list(idx.intersection(bounding_box))
+
+        overlaps = []
+        for j, target_shape in target.iloc[possible].iterrows():
+            target_geo = target_shape.geometry
+            over = source_geo.intersection(target_geo).area
+            overlaps.append(over)
+
+        overlaps = np.array(overlaps)
+        overlaps = overlaps/np.max(overlaps)
+        if max(overlaps) < thresh:
+            print(f"These districts don't align so well "
+                  f"for source={i}, target={j}")
+            print(possible)
+            print(overlaps)
+        greatest_overlap = np.argmax(np.array(overlaps))
+        assignment.append(target[target_var].iloc[possible[greatest_overlap]])
+    return np.array(assignment)
