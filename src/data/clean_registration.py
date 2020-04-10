@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import pandas as pd
 import numpy as np
+from sqlalchemy import Integer, String, Date, BigInteger
 
 
 to_drop = ["index", "ADDRESS_LIBRARY_ID", "SPLIT", "PHONE_NUM", "MAIL_ADDR1",
@@ -65,68 +66,46 @@ def clean_data(raw_registration_data):
     return co_voters_table, voters_per_year
 
 
-def write_data(cur, co_voters_table, voters_per_year):
+def write_data(engine, co_voters_table, voters_per_year):
+    co_voters_name = 'registered_voters'
+    co_voters_dtypes = {
+        "voter_id": Integer,
+        "county_code": Integer,
+        "last_name": String,
+        "first_name": String,
+        "middle_name": String,
+        "name_suffix": String,
+        "status_code": String,
+        "house_num": String,
+        "house_suffix": String,
+        "pre_dir": String,
+        "unit_type": String,
+        "unit_num": String,
+        "residential_city": String,
+        "residential_state": String,
+        "residential_zip_code": Integer,
+        "residential_zip_plus": String,
+        "effective_date": Date,
+        "registration_date": Date,
+        "birth_year": String,
+        "gender": String,
+        "precinct": BigInteger,
+        "party": String,
+        "congressional": Integer,
+        "state_senate": Integer,
+        "state_house": Integer
+    }
+    with engine.connect() as conn:
+        co_voters_table.to_sql(co_voters_name, conn, if_exists='replace',
+                               index=True, index_label='voter_index',
+                               dtype=co_voters_dtypes)
 
-    reg_names = ['voter_index_' + str(year) for year in [2016, 2018]]
-    for name, df in zip(reg_names, voters_per_year):
-        cur.execute("""DROP TABLE IF EXISTS {}""".format(name))
-        cur.execute("""CREATE TABLE {} (
-                "index" INT NOT NULL,
-                "voter_index" INT NOT NULL
-                )
-            """.format(name))
-        sql = """INSERT INTO {}
-                 (index, voter_index)
-                 VALUES (%s, %s)""".format(name)
-        for _, row in df.iterrows():
-            vals = [row.name, row.voter_index]
-            cur.execute(sql, vals)
-
-    cur.execute("""DROP TABLE IF EXISTS registered_voters""")
-    cur.execute("""CREATE TABLE registered_voters (
-            "voter_index" INT PRIMARY KEY,
-            "voter_id" INT NOT NULL,
-            "county_code" INT NOT NULL,
-            "last_name" TEXT,
-            "first_name" TEXT,
-            "middle_name" TEXT,
-            "name_suffix" TEXT,
-            "status_code" TEXT NOT NULL,
-            "house_num" TEXT,
-            "house_suffix" TEXT,
-            "pre_dir" TEXT,
-            "unit_type" TEXT,
-            "unit_num" TEXT,
-            "residential_city" TEXT NOT NULL,
-            "residential_state" TEXT NOT NULL,
-            "residential_zip_code" INT NOT NULL,
-            "residential_zip_plus" TEXT,
-            "effective_date" DATE NOT NULL,
-            "registration_date" DATE NOT NULL,
-            "birth_year" TEXT NOT NULL,
-            "gender" TEXT NOT NULL,
-            "precinct" TEXT NOT NULL,
-            "party" TEXT NOT NULL,
-            "congressional" INT NOT NULL,
-            "state_senate" INT NOT NULL,
-            "state_house" INT NOT NULL)"""
-                )
-    vars = ["voter_index", "voter_id", "county_code", "last_name",
-            "first_name", "middle_name", "name_suffix", "status_code",
-            "house_num", "house_suffix", "pre_dir", "unit_type",
-            "unit_num", "residential_city", "residential_state",
-            "residential_zip_code", "residential_zip_plus",
-            "effective_date", "registration_date", "birth_year",
-            "gender", "precinct", "party", "congressional",
-            "state_senate", "state_house"]
-    perc_string = "(" + ", ".join(['%s'] * len(vars)) + ")"
-    var_string = "(" + ", ".join(vars) + ")"
-    sql = ("""INSERT INTO registered_voters {} VALUES {}"""
-           .format(var_string, perc_string))
-
-    for i, row in co_voters_table.iterrows():
-        vals = [row.name] + list(row[vars[1:]].values)
-        cur.execute(sql, vals)
+    registry_names = ['voter_index_' + str(year) for year in [2016, 2018]]
+    reg_dtypes = {'voter_index': Integer}
+    with engine.connect() as conn:
+        for name, df in zip(registry_names, voters_per_year):
+            df.to_sql(name, conn, if_exists='replace', index=True,
+                      index_label='index', dtype=reg_dtypes)
 
 
 def read_reg_voter_lists(name, num_files):

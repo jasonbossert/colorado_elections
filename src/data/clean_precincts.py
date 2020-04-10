@@ -3,6 +3,9 @@ import geopandas as gpd
 from bs4 import BeautifulSoup
 from rtree import index
 import numpy as np
+from sqlalchemy import Integer, String, Date, Float, BigInteger
+
+from database_helpers import write_gdf_to_sql
 
 
 def load_data(raw_root):
@@ -52,6 +55,39 @@ def clean_data(raw_root, counties, precincts):
     clean_2018 = update_county_vtdst(clean_2018, county_mapping)
 
     return (clean_2016, clean_2018)
+
+
+def write_data2(engine, counties, clean_precinct_shapefiles):
+    counties_dtype = {
+        "county": String,
+        "fips": String,
+        "established": Date,
+        "population": Integer,
+        "area": Float,
+        "countynum": String
+    }
+    with engine.connect() as conn:
+        (counties.iloc[:, [0, 1, 3, 4, 5, 6]]
+                 .to_sql('colorado_counties', conn,
+                         if_exists='replace', index=True, index_label='index',
+                         dtype=counties_dtype))
+
+    years = [2016, 2018]
+    data_dtypes = {
+        "countyfips": String,
+        "countyname": String,
+        "countynum": String,
+        "vtdst3": String,
+        "vtdst5": String,
+        "vtdst": BigInteger,
+        "congressional_district_115fips": Integer,
+        "state_legisture_upper": Integer,
+        "state_legisture_lower": Integer
+    }
+    table_names = ['precinct_shapefiles_' + str(year) for year in years]
+    for df, name in zip(clean_precinct_shapefiles, table_names):
+        write_gdf_to_sql(df, name, engine, geo_column_name='geometry',
+                         data_dtypes=data_dtypes)
 
 
 def write_data(cur, counties, clean_precinct_shapefiles):
