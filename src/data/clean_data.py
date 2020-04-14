@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 
 import clean_precincts as pre
 import clean_registration as reg
+import clean_results as res
 
 
 if __name__ == '__main__':
@@ -25,3 +26,11 @@ if __name__ == '__main__':
     co_voters_table, voters_per_year = reg.clean_data(raw_registrations)
     print("Writing voter registration data to database")
     reg.write_data(engine, co_voters_table, voters_per_year)
+
+    # VOTING RESULTS
+    print("Loading vote results")
+    raw_results = res.load_data(raw_root, [2016, 2018])
+    print("Cleaning vote results")
+    cand, yesno = res.clean_data(raw_results)
+    print("Writing vote results to database")
+    res.write_data(cand, yesno, engine)
